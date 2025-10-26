@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,7 +7,6 @@ __pycache__/
 venv/
 ENV/
 
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -26,18 +24,17 @@ wheels/
 .installed.cfg
 *.egg
 
-# PyCharm
 .idea/
 
-# VS Code
 .vscode/
 *.code-workspace
 
-# Environment variables
 .env
 
-# Model files
 *.pt
 *.pth
 *.bin
 *.model
+model_cache/
+*/model_cache/
+.model_cache/
