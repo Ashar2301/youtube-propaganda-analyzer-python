@@ -17,7 +17,7 @@ class Analysis(BaseModel):
     top_prediction_confidence: float
     raw_scores: List[RawScore]
 
-class BiasResponse(BaseModel):
+class BiasDetectorResponse(BaseModel):
     """
     Complete response from the bias detection analysis.
     """

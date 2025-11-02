@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from .services.bias_detector import BiasDetectorService
 from .services.youtube_transcript import YoutubeTranscriptService
 from .services.llm_response import LLMResponseService
-from .interfaces.BiasDetector import BiasResponse
-from .interfaces.AnalysisResult import AnalysisResult
+from .interfaces.bias_detector_response import BiasDetectorResponse
+from .interfaces.analysis_result import AnalysisResult
 from .config import get_settings
 import logging
 import json
@@ -59,7 +59,7 @@ async def analyze(request: AnalysisRequest):
         transcript = youtube_transcript_generator.generate_transcript(request.url)
         bias_score, analysis = bias_detector.analyze_text(transcript)
         understandable_response = llm_response.generate_understandable_response(
-            BiasResponse(bias_score=bias_score, analysis=analysis),
+            BiasDetectorResponse(bias_score=bias_score, analysis=analysis),
             transcript
         )
 
@@ -68,7 +68,7 @@ async def analyze(request: AnalysisRequest):
                 "bias_score": bias_score,
                 "analysis": analysis
             },
-            "simplifiedResult": understandable_response.dict()
+            "simplified_result": understandable_response.dict()
         }
         
         logger.info("Caching analysis result.")
@@ -78,6 +78,6 @@ async def analyze(request: AnalysisRequest):
         logger.error(f"Error in analyze endpoint: {str(e)}")
 
     return AnalysisResult(
-        bias_result=BiasResponse(bias_score=bias_score, analysis=analysis),
-        simplifiedResult=understandable_response
+        bias_result=BiasDetectorResponse(bias_score=bias_score, analysis=analysis),
+        simplified_result=understandable_response
     )

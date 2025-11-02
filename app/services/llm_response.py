@@ -2,8 +2,8 @@ import logging
 from ..config import get_settings
 from google import genai
 from google.genai import types
-from ..interfaces.BiasDetector import BiasResponse
-from ..interfaces.LLMResponse import LLMResponse
+from ..interfaces.bias_detector_response import BiasDetectorResponse
+from ..interfaces.llm_response import LLMResponse
 import json
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class LLMResponseService:
     def __init__(self, settings):
         self.settings = settings
 
-    def generate_understandable_response(self, bias_analysis_result: BiasResponse, transcript_text: str) -> LLMResponse:
+    def generate_understandable_response(self, bias_analysis_result: BiasDetectorResponse, transcript_text: str) -> LLMResponse:
         """
         Generate a human-understandable response using Gemini LLM.
         
