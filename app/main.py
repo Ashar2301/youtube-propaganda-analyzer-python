@@ -1,9 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from redis import asyncio as aioredis
 from pydantic import BaseModel
-from .services.bias_detector import BiasDetector
+from .services.bias_detector import BiasDetectorService
+from .services.youtube_transcript import YoutubeTranscriptService
+from .services.llm_response import LLMResponseService
+from .interfaces.BiasDetector import BiasResponse
+from .interfaces.AnalysisResult import AnalysisResult
 from .config import get_settings
 import logging
+import json
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,6 +24,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+r = aioredis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+
 origins = settings.CORS_ORIGINS.split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -27,20 +35,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class TranscriptRequest(BaseModel):
-    text: str
+class AnalysisRequest(BaseModel):
+    url: str
 
-class BiasResponse(BaseModel):
-    bias_score: float
-    analysis: dict
-
-bias_detector = BiasDetector(settings)
+bias_detector = BiasDetectorService(settings)
+youtube_transcript_generator = YoutubeTranscriptService(settings)
+llm_response = LLMResponseService(settings)
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Bias Detection API"}
 
-@app.post("/detect-bias", response_model=BiasResponse)
-async def detect_bias(request: TranscriptRequest):
-    bias_score, analysis = bias_detector.analyze_text(request.text)
-    return BiasResponse(bias_score=bias_score, analysis=analysis)
+@app.post("/analyze", response_model=AnalysisResult)
+async def analyze(request: AnalysisRequest):
+
+    cache_key = f"video:{request.url}"
+    try:
+        cached_data = await r.get(cache_key)
+        if cached_data:
+            logger.info("Cache hit. Returning cached analysis result.")
+            return AnalysisResult(**json.loads(cached_data))
+        
+        transcript = youtube_transcript_generator.generate_transcript(request.url)
+        bias_score, analysis = bias_detector.analyze_text(transcript)
+        understandable_response = llm_response.generate_understandable_response(
+            BiasResponse(bias_score=bias_score, analysis=analysis),
+            transcript
+        )
+
+        cache_data = {
+            "bias_result": {
+                "bias_score": bias_score,
+                "analysis": analysis
+            },
+            "simplifiedResult": understandable_response.dict()
+        }
+        
+        logger.info("Caching analysis result.")
+        
+        await r.setex(name=cache_key, time=3600, value=json.dumps(cache_data))
+    except Exception as e:
+        logger.error(f"Error in analyze endpoint: {str(e)}")
+
+    return AnalysisResult(
+        bias_result=BiasResponse(bias_score=bias_score, analysis=analysis),
+        simplifiedResult=understandable_response
+    )

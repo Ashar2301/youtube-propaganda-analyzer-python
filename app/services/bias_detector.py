@@ -5,7 +5,7 @@ from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 
-class BiasDetector:
+class BiasDetectorService:
     """
     Loads the Hugging Face model components (Tokenizer and TF Model)
     and handles bias detection inference.
@@ -54,6 +54,8 @@ class BiasDetector:
         if self.classifier is None:
              self.load_model()
 
+        logger.info("Analyzing text for bias.")
+
         results: List[List[Dict[str, Any]]] = self.classifier(text)
         
         raw_scores = results[0] if results else []
@@ -84,7 +86,9 @@ class BiasDetector:
             "top_prediction_confidence": confidence,
             "raw_scores": raw_scores
         }
+
+        logger.info(f"Bias analysis completed. Score: {bias_score}, Top Label: {top_bias_category}, Confidence: {confidence}")
         
         return bias_score, analysis
 
-bias_detector = BiasDetector(get_settings())
+bias_detector = BiasDetectorService(get_settings())
