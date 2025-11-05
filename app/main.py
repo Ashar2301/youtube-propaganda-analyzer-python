@@ -10,6 +10,8 @@ from .interfaces.analysis_result import AnalysisResult
 from .config import get_settings
 import logging
 import json
+from typing import Optional
+from fastapi import Query, HTTPException
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +40,9 @@ app.add_middleware(
 class AnalysisRequest(BaseModel):
     url: str
 
+class BiasAnalysisRequest(BaseModel):
+    transcript: str
+
 bias_detector = BiasDetectorService(settings)
 youtube_transcript_generator = YoutubeTranscriptService(settings)
 llm_response = LLMResponseService(settings)
@@ -46,16 +51,45 @@ llm_response = LLMResponseService(settings)
 async def root():
     return {"message": "Welcome to the Bias Detection API"}
 
+
+@app.get("/transcript")
+async def get_transcript(url: str = ""):
+    try:
+        transcript = youtube_transcript_generator.generate_transcript(url)
+        return {
+                "transcript": transcript
+            }
+    except Exception as e:
+            logger.error(f"Error fetching transcript: {e}")
+            raise HTTPException(status_code=500, detail="Failed to fetch transcript")
+
+@app.post("/bias-analysis")
+async def bias_analysis(request: BiasAnalysisRequest):
+    try:
+        bias_score, analysis = bias_detector.analyze_text(request.transcript)
+        return {
+            "bias_score": bias_score,
+            "analysis": analysis
+        }
+    except Exception as e:
+        logger.error(f"Error in bias analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail="Bias analysis failed")
+
 @app.post("/analyze", response_model=AnalysisResult)
-async def analyze(request: AnalysisRequest):
+async def analyze(request: AnalysisRequest, skip_cache: bool = False):
 
     cache_key = f"video:{request.url}"
+    logger.info(f"Analyzing video at URL: {request.url} with cache key: {cache_key} and skip_cache={skip_cache}")
     try:
-        cached_data = await r.get(cache_key)
-        if cached_data:
-            logger.info("Cache hit. Returning cached analysis result.")
-            return AnalysisResult(**json.loads(cached_data))
+        if skip_cache:
+            logger.info("Skipping cache as per request.")
+        else:
+            cached_data = await r.get(cache_key)
+            if cached_data:
+                logger.info("Cache hit. Returning cached analysis result.")
+                return AnalysisResult(**json.loads(cached_data))
         
+        logger.info("Cache miss. Performing analysis.")
         transcript = youtube_transcript_generator.generate_transcript(request.url)
         bias_score, analysis = bias_detector.analyze_text(transcript)
         understandable_response = llm_response.generate_understandable_response(

@@ -69,7 +69,7 @@ class BiasDetectorService:
             label = score_info['label']
             score = score_info['score']
             
-            if label.lower() == 'bias':
+            if label.lower() == 'biased':
                 bias_score = round(score, 4)
                 confidence = bias_score
                 top_bias_category = label
