@@ -1,6 +1,7 @@
 import logging
 from ..config import get_settings
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from urllib.parse import urlparse, parse_qs
 
 logger = logging.getLogger(__name__)
@@ -25,8 +26,15 @@ class YoutubeTranscriptService:
         """
         video_id = self.extract_video_id(url)
         logger.info(f"Fetching transcript for video ID: {video_id}")
+        logger.info(f"Using Webshare proxy with username: {self.settings.WEBSHARE_PROXY_USERNAME}")
+        logger.info(f"Using Webshare proxy with password: {self.settings.WEBSHARE_PROXY_PASSWORD}")
 
-        ytt_api = YouTubeTranscriptApi()
+        ytt_api = YouTubeTranscriptApi(
+            proxy_config=WebshareProxyConfig(
+                proxy_username=self.settings.WEBSHARE_PROXY_USERNAME,
+                proxy_password=self.settings.WEBSHARE_PROXY_PASSWORD,
+    )
+        )
         transcript = ytt_api.fetch(video_id)
         transcript_text = ""
         for snippet in transcript:

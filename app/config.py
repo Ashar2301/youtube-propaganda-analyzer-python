@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     GEMINI_API_KEY: str= ""
+
+    WEBSHARE_PROXY_USERNAME:str=""
+    WEBSHARE_PROXY_PASSWORD:str=""
     
     class Config:
         env_file = ".env"
