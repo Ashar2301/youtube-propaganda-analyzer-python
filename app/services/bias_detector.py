@@ -56,41 +56,103 @@ class BiasDetectorService:
 
         logger.info(f"Analyzing text for bias. Text length: {len(text)}")
 
-        results: List[List[Dict[str, Any]]] = self.classifier(text)
-        
-        logger.info("No issues in classifier execution.")
-        
-        raw_scores = results[0] if results else []
+        # Split text into chunks of max 2000 characters
+        max_chunk_size = 2000
+        text_chunks = [text[i:i + max_chunk_size] for i in range(0, len(text), max_chunk_size)]
+        logger.info(f"Text split into {len(text_chunks)} chunks for analysis.") 
+        analysis_array = []
 
+        for text_chunk in text_chunks:
+            result: List[List[Dict[str, Any]]] = self.classifier(text_chunk)
+            raw_score = result[0] if result else []
         
-        bias_score = 0.0
-        top_bias_category = "Non-Bias"
-        confidence = 0.0
+            bias_score = 0.0
+            top_bias_category = "Non-Bias"
+            confidence = 0.0
 
-        for score_info in raw_scores:
-            label = score_info['label']
-            score = score_info['score']
+            for score_info in raw_score:
+                label = score_info['label']
+                score = score_info['score']
+                
+                if label.lower() == 'biased':
+                    bias_score = round(score, 4)
+                    confidence = bias_score
+                    top_bias_category = label
+                    break 
+
+                if score > confidence:
+                    confidence = round(score, 4)
+                    top_bias_category = label
+
             
-            if label.lower() == 'biased':
-                bias_score = round(score, 4)
-                confidence = bias_score
-                top_bias_category = label
-                break 
+            analysis = {
+                "overall_bias_score": bias_score,
+                "top_prediction_label": top_bias_category,
+                "top_prediction_confidence": confidence,
+                "raw_scores": raw_score
+            }
 
-            if score > confidence:
-                 confidence = round(score, 4)
-                 top_bias_category = label
+            logger.info(f"Chunk analysis completed. Score: {bias_score}, Top Label: {top_bias_category}, Confidence: {confidence}")
 
+            analysis_array.append(analysis)
+
+
+        averaged_bias_score = self.compute_average_analysis(analysis_array)
+
+        logger.info(f"Bias analysis completed. {averaged_bias_score}")
         
-        analysis = {
-            "overall_bias_score": bias_score,
-            "top_prediction_label": top_bias_category,
-            "top_prediction_confidence": confidence,
-            "raw_scores": raw_scores
+        return averaged_bias_score
+    
+    def compute_average_analysis(self,analysis_array) -> Tuple[float, Dict[str, Any]]:
+        if not analysis_array:
+            return{ 
+                "bias_score": 0.0,
+                "analysis":{
+                    "overall_bias_score": 0.0,
+                    "top_prediction_label": None,
+                    "top_prediction_confidence": 0.0,
+                    "raw_scores": []
+                }
+            }
+
+        total_bias_score = 0.0
+        total_confidence = 0.0
+
+        # raw_scores is a list of dicts; we must average each label's score separately
+        score_sums = {}
+        score_counts = {}
+
+        for entry in analysis_array:
+            total_bias_score += entry["overall_bias_score"]
+            total_confidence += entry["top_prediction_confidence"]
+
+            for score_item in entry["raw_scores"]:
+                label = score_item["label"]
+                score = score_item["score"]
+
+                score_sums[label] = score_sums.get(label, 0.0) + score
+                score_counts[label] = score_counts.get(label, 0) + 1
+
+        avg_bias_score = total_bias_score / len(analysis_array)
+        avg_confidence = total_confidence / len(analysis_array)
+
+        avg_raw_scores = [
+            {"label": label, "score": score_sums[label] / score_counts[label]}
+            for label in score_sums
+        ]
+
+        # Determine label with highest averaged score
+        top_prediction_label = max(avg_raw_scores, key=lambda x: x["score"])["label"]
+
+        return {
+            "bias_score": avg_bias_score,
+            "analysis": {
+                "overall_bias_score": avg_bias_score,
+                "top_prediction_label": top_prediction_label,
+                "top_prediction_confidence": avg_confidence,
+                "raw_scores": avg_raw_scores
+            }
         }
 
-        logger.info(f"Bias analysis completed. Score: {bias_score}, Top Label: {top_bias_category}, Confidence: {confidence}")
-        
-        return bias_score, analysis
 
 bias_detector = BiasDetectorService(get_settings())

@@ -63,14 +63,11 @@ async def get_transcript(url: str = ""):
             logger.error(f"Error fetching transcript: {e}")
             raise HTTPException(status_code=500, detail="Failed to fetch transcript")
 
-@app.post("/bias-analysis")
+@app.post("/bias-analysis", response_model=BiasDetectorResponse)
 async def bias_analysis(request: BiasAnalysisRequest):
     try:
-        bias_score, analysis = bias_detector.analyze_text(request.transcript)
-        return {
-            "bias_score": bias_score,
-            "analysis": analysis
-        }
+        bias_detector_response = bias_detector.analyze_text(request.transcript)
+        return bias_detector_response
     except Exception as e:
         logger.error(f"Error in bias analysis: {str(e)}")
         raise HTTPException(status_code=500, detail="Bias analysis failed")
@@ -91,16 +88,18 @@ async def analyze(request: AnalysisRequest, skip_cache: bool = False):
         
         logger.info("Cache miss. Performing analysis.")
         transcript = youtube_transcript_generator.generate_transcript(request.url)
-        bias_score, analysis = bias_detector.analyze_text(transcript)
+        bias_detector_response = bias_detector.analyze_text(transcript)
+        logger.info(f"res ult: {bias_detector_response}")
+        logger.info(f"bias_response: {bias_detector_response["bias_score"]}")
         understandable_response = llm_response.generate_understandable_response(
-            BiasDetectorResponse(bias_score=bias_score, analysis=analysis),
+            BiasDetectorResponse(bias_score=bias_detector_response["bias_score"], analysis=bias_detector_response["analysis"]),
             transcript
         )
 
         cache_data = {
             "bias_result": {
-                "bias_score": bias_score,
-                "analysis": analysis
+                "bias_score": bias_detector_response["bias_score"],
+                "analysis": bias_detector_response["analysis"]
             },
             "simplified_result": understandable_response.dict()
         }
@@ -112,6 +111,6 @@ async def analyze(request: AnalysisRequest, skip_cache: bool = False):
         logger.error(f"Error in analyze endpoint: {str(e)}")
 
     return AnalysisResult(
-        bias_result=BiasDetectorResponse(bias_score=bias_score, analysis=analysis),
+        bias_result=bias_detector_response,
         simplified_result=understandable_response
     )
