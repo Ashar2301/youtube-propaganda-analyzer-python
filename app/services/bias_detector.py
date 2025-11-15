@@ -54,9 +54,11 @@ class BiasDetectorService:
         if self.classifier is None:
              self.load_model()
 
-        logger.info("Analyzing text for bias.")
+        logger.info(f"Analyzing text for bias. Text length: {len(text)}")
 
         results: List[List[Dict[str, Any]]] = self.classifier(text)
+        
+        logger.info(f"Analyzing text for bias. Text length: {len(text)}")
         
         raw_scores = results[0] if results else []
 
