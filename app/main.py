@@ -89,6 +89,10 @@ async def analyze(request: AnalysisRequest, skip_cache: bool = False):
         
         logger.info("Cache miss. Performing analysis.")
         transcript = youtube_transcript_generator.generate_transcript(request.url)
+
+        if(transcript == ""):
+            raise HTTPException(status_code=500, detail="Failed to fetch transcript or transcript is empty")
+        
         bias_detector_response = bias_detector.analyze_text(transcript)
         logger.info(f"res ult: {bias_detector_response}")
         logger.info(f"bias_response: {bias_detector_response["bias_score"]}")

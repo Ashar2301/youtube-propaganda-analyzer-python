@@ -13,7 +13,7 @@ class Analysis(BaseModel):
     Detailed analysis results from the bias detection model.
     """
     overall_bias_score: float
-    top_prediction_label: str
+    top_prediction_label: str | None
     top_prediction_confidence: float
     raw_scores: List[RawScore]
 
