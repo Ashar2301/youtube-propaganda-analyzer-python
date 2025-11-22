@@ -38,3 +38,5 @@ wheels/
 model_cache/
 */model_cache/
 .model_cache/
+
+cookies.txt

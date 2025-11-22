@@ -55,6 +55,7 @@ async def root():
 @app.get("/transcript")
 async def get_transcript(url: str = ""):
     try:
+        logger.info(f"Fetching transcript for URL: {url}")
         transcript = youtube_transcript_generator.generate_transcript(url)
         return {
                 "transcript": transcript

@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     GEMINI_API_KEY: str= ""
+    YT_DATA_KEY: str= ""   
+
+    YT_DLP_COOKIES_PATH: str = "./cookies.txt" 
     
     class Config:
         env_file = ".env"
